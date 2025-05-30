@@ -41,4 +41,18 @@ class Order extends Model
 
         return $icons[$this->payment_method] ?? 'bi-cash-stack';
     }
+
+    // Boot method untuk cascade delete
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($order) {
+            // Hapus semua order details dan sauces
+            foreach ($order->details as $detail) {
+                $detail->sauces()->delete();
+                $detail->delete();
+            }
+        });
+    }
 }

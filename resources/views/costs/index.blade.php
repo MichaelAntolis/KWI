@@ -1,9 +1,8 @@
-<!-- costs/index.blade.php -->
 @extends('layouts.app')
 
 @section('content')
 <div class="container">
-    <div class="card card-custom animate-on-scroll">
+    <div class="card card-custom">
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 text-white"><i class="bi bi-cart-dash me-2"></i> Manajemen Pengeluaran</h5>
@@ -13,6 +12,23 @@
             </div>
         </div>
         <div class="card-body">
+            <!-- Success/Error Messages -->
+            @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            @endif
+
+            @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-circle-fill me-2"></i>
+                {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            @endif
+
             <!-- Filter Form -->
             <form class="mb-4" method="get" action="{{ route('costs.index') }}">
                 <div class="row g-3">
@@ -221,22 +237,24 @@
                             <td class="text-center">
                                 <div class="btn-group btn-group-sm">
                                     @if($cost->user_id == auth()->id())
-                                    <a href="{{ route('costs.edit', $cost->id) }}"
-                                        class="btn btn-outline-warning" title="Edit">
+                                    <a href="{{ route('costs.edit', $cost->id) }}" class="btn btn-outline-warning" title="Edit">
                                         <i class="bi bi-pencil"></i>
                                     </a>
-                                    <form action="{{ route('costs.destroy', $cost->id) }}" method="POST"
-                                        class="d-inline" onsubmit="return confirm('Yakin ingin menghapus data ini?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-outline-danger" title="Hapus">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
+                                    <button type="button" class="btn btn-outline-danger" onclick="confirmDeleteCost({{ $cost->id }})" title="Hapus">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
                                     @else
                                     <small class="text-muted">Tidak dapat diedit</small>
                                     @endif
                                 </div>
+
+                                @if($cost->user_id == auth()->id())
+                                <!-- Hidden Delete Form -->
+                                <form id="deleteCostForm{{ $cost->id }}" action="{{ route('costs.destroy', $cost->id) }}" method="POST" style="display: none;">
+                                    @csrf
+                                    @method('DELETE')
+                                </form>
+                                @endif
                             </td>
                         </tr>
                         @empty
@@ -278,6 +296,40 @@
     </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteCostModal" tabindex="-1" aria-labelledby="deleteCostModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-danger" id="deleteCostModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Konfirmasi Hapus
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="bi bi-trash3-fill text-danger" style="font-size: 3rem;"></i>
+                </div>
+                <p class="text-center mb-3">
+                    Apakah Anda yakin ingin menghapus data pengeluaran ini?
+                </p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Peringatan!</strong> Data yang sudah dihapus tidak dapat dikembalikan lagi.
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i> Batal
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteCostBtn">
+                    <i class="bi bi-trash-fill me-1"></i> Ya, Hapus Data
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('styles')
 <style>
     .cost-row {
@@ -299,21 +351,38 @@
         font-size: 0.75rem;
         font-weight: 500;
     }
+
+    .btn-group .btn {
+        border-radius: 0.25rem;
+        margin-right: 2px;
+    }
+
+    .btn-group .btn:last-child {
+        margin-right: 0;
+    }
 </style>
 @endpush
 
 @push('scripts')
 <script>
-    // Success/Error messages
-    @if(session('success'))
-    // You can add toast notifications here
-    console.log('Success: {{ session("success") }}');
-    @endif
+    let deleteCostModal;
+    let currentCostId;
 
-    @if(session('error'))
-    // You can add error notifications here
-    console.log('Error: {{ session("error") }}');
-    @endif
+    document.addEventListener('DOMContentLoaded', function() {
+        deleteCostModal = new bootstrap.Modal(document.getElementById('deleteCostModal'));
+
+        // Confirm delete button handler
+        document.getElementById('confirmDeleteCostBtn').addEventListener('click', function() {
+            if (currentCostId) {
+                document.getElementById('deleteCostForm' + currentCostId).submit();
+            }
+        });
+    });
+
+    function confirmDeleteCost(costId) {
+        currentCostId = costId;
+        deleteCostModal.show();
+    }
 </script>
 @endpush
 @endsection

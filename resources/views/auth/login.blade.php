@@ -8,7 +8,7 @@
             <div class="card card-custom animate-on-scroll" style="border-top: 4px solid #4e73df;">
                 <div class="card-body p-5">
                     <div class="text-center mb-4">
-                        <img src="https://img.icons8.com/color/96/000000/dumpling.png" alt="Dumpling" width="80">
+                        <img src="{{ asset('images/dumplish.png') }}" width="60" height="60" alt="Logo" style="border-radius: 50%;">
                         <h2 class="mt-3 fw-bold text-primary">Dumpling Kasir</h2>
                         <p class="text-muted">Silakan masuk untuk melanjutkan</p>
                     </div>

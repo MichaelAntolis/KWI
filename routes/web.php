@@ -12,7 +12,6 @@ Route::get('/', function () {
     return redirect()->route('kasir.index');
 });
 
-
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -34,7 +33,12 @@ Route::middleware('auth')->group(function () {
     // Riwayat routes
     Route::get('/riwayat', [RiwayatController::class, 'index'])->name('riwayat.index');
     Route::get('/riwayat/{order}', [RiwayatController::class, 'show'])->name('riwayat.show');
+    Route::delete('/riwayat/{order}', [RiwayatController::class, 'destroy'])->name('riwayat.destroy');
+    Route::post('/riwayat/reset-auto-increment', [RiwayatController::class, 'resetAutoIncrement'])->name('riwayat.reset-auto-increment');
 
     // Laporan routes
     Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
+
+    // API routes untuk detail transaksi harian
+    Route::get('/api/daily-transactions/{date}', [LaporanController::class, 'getDailyTransactions'])->name('api.daily-transactions');
 });

@@ -39,4 +39,71 @@ class RiwayatController extends Controller
         $order->load('user', 'details.dumpling', 'details.sauces.sauce');
         return view('riwayat.show', compact('order'));
     }
+
+    public function destroy(Order $order)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Hapus semua relasi terkait
+            foreach ($order->details as $detail) {
+                // Hapus order sauces
+                $detail->sauces()->delete();
+            }
+
+            // Hapus order details
+            $order->details()->delete();
+
+            // Hapus order
+            $order->delete();
+
+            // Reset auto-increment jika tidak ada data tersisa
+            $this->resetAutoIncrementIfEmpty();
+
+            DB::commit();
+
+            return redirect()->route('riwayat.index')->with('success', 'Invoice #' . $order->id . ' berhasil dihapus!');
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->route('riwayat.index')->with('error', 'Gagal menghapus invoice: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Reset auto-increment jika tabel kosong
+     */
+    private function resetAutoIncrementIfEmpty()
+    {
+        // Cek apakah tabel orders kosong
+        $orderCount = Order::count();
+
+        if ($orderCount == 0) {
+            // Reset auto-increment untuk semua tabel terkait
+            DB::statement('ALTER TABLE orders AUTO_INCREMENT = 1');
+            DB::statement('ALTER TABLE order_details AUTO_INCREMENT = 1');
+            DB::statement('ALTER TABLE order_sauces AUTO_INCREMENT = 1');
+        }
+    }
+
+    /**
+     * Method untuk reset manual auto-increment (bisa dipanggil via route)
+     */
+    public function resetAutoIncrement()
+    {
+        try {
+            DB::beginTransaction();
+
+            // Reset auto-increment untuk semua tabel terkait
+            DB::statement('ALTER TABLE orders AUTO_INCREMENT = 1');
+            DB::statement('ALTER TABLE order_details AUTO_INCREMENT = 1');
+            DB::statement('ALTER TABLE order_sauces AUTO_INCREMENT = 1');
+
+            DB::commit();
+
+            return redirect()->route('riwayat.index')->with('success', 'Auto-increment berhasil direset! Invoice selanjutnya akan dimulai dari #1');
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->route('riwayat.index')->with('error', 'Gagal reset auto-increment: ' . $e->getMessage());
+        }
+    }
 }

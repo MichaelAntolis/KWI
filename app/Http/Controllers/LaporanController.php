@@ -19,10 +19,10 @@ class LaporanController extends Controller
         // Total transaksi & pendapatan
         $totalOrder = Order::count();
         $totalIncome = Order::sum('total_price');
-        
+
         // Total pengeluaran (cost)
         $totalCost = Cost::sum('total_price');
-        
+
         // Profit = Pendapatan - Pengeluaran
         $totalProfit = $totalIncome - $totalCost;
 
@@ -54,6 +54,7 @@ class LaporanController extends Controller
             $salesQuery->where(DB::raw("DATE(created_at)"), '<=', $endDate);
             $costsQuery->where(DB::raw("DATE(purchased_date)"), '<=', $endDate);
         }
+        // PERBAIKAN: Jika tidak ada filter tanggal, tampilkan semua data (tidak perlu where clause tambahan)
 
         $salesPerDay = $salesQuery
             ->groupBy(DB::raw("DATE(created_at)"))
@@ -66,15 +67,40 @@ class LaporanController extends Controller
             ->get()
             ->keyBy('date');
 
-        // Gabungkan data penjualan dan pengeluaran per hari
-        $dailyReport = $salesPerDay->map(function ($sale) use ($costsPerDay) {
-            $cost = $costsPerDay->get($sale->date);
+        // PERBAIKAN: Gabungkan data penjualan dan pengeluaran per hari
+        // Sekarang akan mengambil semua tanggal unik dari sales dan costs
+        $allDates = collect();
+
+        // Tambahkan semua tanggal dari sales
+        $salesPerDay->each(function ($sale) use ($allDates) {
+            $allDates->push($sale->date);
+        });
+
+        // Tambahkan semua tanggal dari costs yang belum ada
+        $costsPerDay->each(function ($cost, $date) use ($allDates) {
+            if (!$allDates->contains($date)) {
+                $allDates->push($date);
+            }
+        });
+
+        // Urutkan tanggal secara descending
+        $allDates = $allDates->unique()->sortDesc();
+
+        // Buat laporan harian lengkap untuk semua tanggal
+        $dailyReport = $allDates->map(function ($date) use ($salesPerDay, $costsPerDay) {
+            $sale = $salesPerDay->firstWhere('date', $date);
+            $cost = $costsPerDay->get($date);
+
+            $totalIncome = $sale ? $sale->total_income : 0;
+            $totalCost = $cost ? $cost->total_cost : 0;
+            $totalOrder = $sale ? $sale->total_order : 0;
+
             return (object) [
-                'date' => $sale->date,
-                'total_order' => $sale->total_order,
-                'total_income' => $sale->total_income,
-                'total_cost' => $cost ? $cost->total_cost : 0,
-                'profit' => $sale->total_income - ($cost ? $cost->total_cost : 0)
+                'date' => $date,
+                'total_order' => $totalOrder,
+                'total_income' => $totalIncome,
+                'total_cost' => $totalCost,
+                'profit' => $totalIncome - $totalCost
             ];
         });
 
@@ -183,7 +209,7 @@ class LaporanController extends Controller
             'totalIncome',
             'totalCost',
             'totalProfit',
-            'dailyReport', // sudah gabungan sales + costs per day
+            'dailyReport', // sudah gabungan sales + costs per day untuk semua tanggal
             'totalItemsSold',
             'bestDumpling',
             'bestSauce',
@@ -194,5 +220,74 @@ class LaporanController extends Controller
             'startDate',
             'endDate'
         ));
+    }
+
+    /**
+     * API endpoint untuk mendapatkan detail transaksi harian
+     */
+    public function getDailyTransactions($date)
+    {
+        try {
+            // Validasi format tanggal
+            $carbonDate = Carbon::parse($date);
+
+            // Ambil transaksi penjualan
+            $orders = Order::with('user')
+                ->whereDate('created_at', $date)
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($order) {
+                    return [
+                        'id' => $order->id,
+                        'time' => $order->created_at->format('H:i'),
+                        'user_name' => $order->user->name ?? '-',
+                        'payment_method' => $order->payment_method,
+                        'total_price' => $order->total_price,
+                        'created_at' => $order->created_at->format('Y-m-d H:i:s')
+                    ];
+                });
+
+            // Ambil transaksi pengeluaran
+            $costs = Cost::with('user')
+                ->whereDate('purchased_date', $date)
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($cost) {
+                    return [
+                        'id' => $cost->id,
+                        'item_name' => $cost->item_name,
+                        'description' => $cost->description,
+                        'quantity' => $cost->quantity,
+                        'unit' => $cost->unit,
+                        'unit_price' => $cost->unit_price,
+                        'total_price' => $cost->total_price,
+                        'user_name' => $cost->user->name ?? '-',
+                        'purchased_date' => $cost->purchased_date->format('Y-m-d')
+                    ];
+                });
+
+            // Hitung summary
+            $summary = [
+                'total_orders' => $orders->count(),
+                'total_income' => $orders->sum('total_price'),
+                'total_costs' => $costs->sum('total_price'),
+                'net_profit' => $orders->sum('total_price') - $costs->sum('total_price')
+            ];
+
+            return response()->json([
+                'success' => true,
+                'date' => $date,
+                'data' => [
+                    'orders' => $orders,
+                    'costs' => $costs,
+                    'summary' => $summary
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data transaksi: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

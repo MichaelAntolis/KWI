@@ -8,7 +8,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 
     <style>
         :root {
@@ -360,22 +359,6 @@
             sidebar.classList.remove('show');
             sidebarOverlay.classList.remove('show');
         });
-
-        // Animate elements when they come into view
-        const animateOnScroll = () => {
-            const elements = document.querySelectorAll('.animate-on-scroll');
-            elements.forEach(element => {
-                const elementPosition = element.getBoundingClientRect().top;
-                const screenPosition = window.innerHeight / 1.3;
-
-                if (elementPosition < screenPosition) {
-                    element.classList.add('animate__animated', 'animate__fadeInUp');
-                }
-            });
-        };
-
-        window.addEventListener('load', animateOnScroll);
-        window.addEventListener('scroll', animateOnScroll);
     </script>
 
     @stack('scripts')

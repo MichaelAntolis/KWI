@@ -149,6 +149,9 @@
                             <a href="{{ route('riwayat.index') }}" class="btn btn-light">
                                 <i class="bi bi-arrow-left me-1"></i> Kembali
                             </a>
+                            <button type="button" class="btn btn-danger" onclick="confirmDelete()">
+                                <i class="bi bi-trash-fill me-1"></i> Hapus Invoice
+                            </button>
                             <a href="{{ route('kasir.index') }}" class="btn btn-primary">
                                 <i class="bi bi-plus-circle me-1"></i> Transaksi Baru
                             </a>
@@ -159,6 +162,56 @@
         </div>
     </div>
 </div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold text-danger" id="deleteModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Konfirmasi Hapus Invoice
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="bi bi-trash3-fill text-danger" style="font-size: 3rem;"></i>
+                </div>
+                <p class="text-center mb-3">
+                    Apakah Anda yakin ingin menghapus <strong>Invoice #{{ $order->id }}</strong>?
+                </p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Peringatan!</strong> Data yang sudah dihapus tidak dapat dikembalikan lagi.
+                    Semua detail transaksi akan hilang permanen dan akan mempengaruhi laporan.
+                </div>
+                <div class="bg-light p-3 rounded mb-3">
+                    <h6 class="fw-semibold mb-2">Detail yang akan dihapus:</h6>
+                    <ul class="list-unstyled mb-0">
+                        <li><i class="bi bi-check text-danger me-2"></i>Invoice #{{ $order->id }}</li>
+                        <li><i class="bi bi-check text-danger me-2"></i>Total: Rp{{ number_format($order->total_price,0,',','.') }}</li>
+                        <li><i class="bi bi-check text-danger me-2"></i>{{ $order->details->count() }} item detail</li>
+                        <li><i class="bi bi-check text-danger me-2"></i>Pembayaran: {{ $order->payment_method_label }}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i> Batal
+                </button>
+                <button type="button" class="btn btn-danger" onclick="submitDelete()">
+                    <i class="bi bi-trash-fill me-1"></i> Ya, Hapus Invoice
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden Delete Form -->
+<form id="deleteForm" action="{{ route('riwayat.destroy', $order->id) }}" method="POST" style="display: none;">
+    @csrf
+    @method('DELETE')
+</form>
 
 <!-- Print Styles -->
 <style>
@@ -193,4 +246,22 @@
         }
     }
 </style>
+
+@push('scripts')
+<script>
+    let deleteModal;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    });
+
+    function confirmDelete() {
+        deleteModal.show();
+    }
+
+    function submitDelete() {
+        document.getElementById('deleteForm').submit();
+    }
+</script>
+@endpush
 @endsection

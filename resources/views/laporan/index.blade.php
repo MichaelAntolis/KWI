@@ -1,9 +1,8 @@
-<!-- laporan/index.blade.php -->
 @extends('layouts.app')
 
 @section('content')
 <div class="container">
-    <div class="card card-custom animate-on-scroll mb-4">
+    <div class="card card-custom mb-4">
         <div class="card-header">
             <h5 class="mb-0 text-white"><i class="bi bi-bar-chart me-2"></i> Laporan Penjualan & Pengeluaran</h5>
         </div>
@@ -355,6 +354,7 @@
                                             <th class="text-end">Pendapatan</th>
                                             <th class="text-end">Pengeluaran</th>
                                             <th class="text-end">Profit</th>
+                                            <th class="text-center">Detail</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -383,10 +383,17 @@
                                                     @endif
                                                 </div>
                                             </td>
+                                            <td class="text-center">
+                                                <button type="button" class="btn btn-sm btn-outline-info"
+                                                    onclick="showTransactionDetail('{{ $report->date }}')"
+                                                    title="Lihat Detail Transaksi">
+                                                    <i class="bi bi-eye-fill"></i>
+                                                </button>
+                                            </td>
                                         </tr>
                                         @empty
                                         <tr>
-                                            <td colspan="5" class="text-center py-4">
+                                            <td colspan="6" class="text-center py-4">
                                                 <img src="https://img.icons8.com/ios/50/000000/nothing-found.png" width="48">
                                                 <p class="mt-2 mb-0 text-muted">Tidak ada data ditemukan</p>
                                                 @if($startDate || $endDate)
@@ -412,6 +419,7 @@
                                             <th class="text-end fw-bold {{ $dailyReport->sum('profit') >= 0 ? 'text-success' : 'text-danger' }}">
                                                 Rp{{ number_format($dailyReport->sum('profit'),0,',','.') }}
                                             </th>
+                                            <th></th>
                                         </tr>
                                     </tfoot>
                                     @endif
@@ -440,4 +448,266 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Detail Transaksi Harian -->
+<div class="modal fade" id="transactionDetailModal" tabindex="-1" aria-labelledby="transactionDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="transactionDetailModalLabel">
+                    <i class="bi bi-calendar-date me-2"></i>Detail Transaksi Harian
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="transactionDetailContent">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Memuat data transaksi...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i> Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+    let transactionModal;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        transactionModal = new bootstrap.Modal(document.getElementById('transactionDetailModal'));
+    });
+
+    function showTransactionDetail(date) {
+        // Reset modal content
+        document.getElementById('transactionDetailContent').innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Memuat data transaksi...</p>
+            </div>
+        `;
+
+        // Update modal title
+        const formattedDate = new Date(date).toLocaleDateString('id-ID', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        document.getElementById('transactionDetailModalLabel').innerHTML =
+            `<i class="bi bi-calendar-date me-2"></i>Detail Transaksi - ${formattedDate}`;
+
+        // Show modal
+        transactionModal.show();
+
+        // Fetch transaction data
+        fetch(`/api/daily-transactions/${date}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderTransactionDetail(data.data, date);
+                } else {
+                    showError('Gagal memuat data transaksi');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Terjadi kesalahan saat memuat data');
+            });
+    }
+
+    function renderTransactionDetail(data, date) {
+        const {
+            orders,
+            costs,
+            summary
+        } = data;
+
+        let content = `
+            <!-- Summary Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card bg-primary bg-opacity-10 border-0">
+                        <div class="card-body text-center py-3">
+                            <h5 class="fw-bold text-primary mb-1">${summary.total_orders}</h5>
+                            <small class="text-muted">Total Transaksi</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-success bg-opacity-10 border-0">
+                        <div class="card-body text-center py-3">
+                            <h5 class="fw-bold text-success mb-1">Rp${numberFormat(summary.total_income)}</h5>
+                            <small class="text-muted">Total Pendapatan</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-danger bg-opacity-10 border-0">
+                        <div class="card-body text-center py-3">
+                            <h5 class="fw-bold text-danger mb-1">Rp${numberFormat(summary.total_costs)}</h5>
+                            <small class="text-muted">Total Pengeluaran</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Transaksi Penjualan
+        if (orders.length > 0) {
+            content += `
+                <div class="mb-4">
+                    <h6 class="fw-semibold mb-3">
+                        <i class="bi bi-receipt text-success me-2"></i>Transaksi Penjualan (${orders.length})
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Invoice</th>
+                                    <th>Waktu</th>
+                                    <th>Kasir</th>
+                                    <th>Pembayaran</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            orders.forEach(order => {
+                const paymentIcon = getPaymentIcon(order.payment_method);
+                const paymentLabel = getPaymentLabel(order.payment_method);
+
+                content += `
+                    <tr>
+                        <td><span class="fw-semibold text-primary">#${order.id}</span></td>
+                        <td><small>${order.time}</small></td>
+                        <td><small>${order.user_name}</small></td>
+                        <td>
+                            <span class="badge bg-info bg-opacity-10 text-info px-2 py-1">
+                                <i class="${paymentIcon} me-1"></i>${paymentLabel}
+                            </span>
+                        </td>
+                        <td class="text-end fw-semibold">Rp${numberFormat(order.total_price)}</td>
+                        <td class="text-center">
+                            <a href="/riwayat/${order.id}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                <i class="bi bi-eye-fill"></i>
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            content += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Transaksi Pengeluaran
+        if (costs.length > 0) {
+            content += `
+                <div class="mb-4">
+                    <h6 class="fw-semibold mb-3">
+                        <i class="bi bi-cart-dash text-danger me-2"></i>Pengeluaran (${costs.length})
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Quantity</th>
+                                    <th>User</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            costs.forEach(cost => {
+                content += `
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">${cost.item_name}</div>
+                            ${cost.description ? `<small class="text-muted">${cost.description}</small>` : ''}
+                        </td>
+                        <td>
+                            <span class="badge bg-info bg-opacity-10 text-info px-2 py-1">
+                                ${cost.quantity} ${cost.unit}
+                            </span>
+                        </td>
+                        <td><small>${cost.user_name}</small></td>
+                        <td class="text-end fw-semibold text-danger">Rp${numberFormat(cost.total_price)}</td>
+                    </tr>
+                `;
+            });
+
+            content += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Jika tidak ada data
+        if (orders.length === 0 && costs.length === 0) {
+            content += `
+                <div class="text-center py-5">
+                    <img src="https://img.icons8.com/ios/50/000000/nothing-found.png" width="64" class="mb-3">
+                    <h6 class="text-muted mb-2">Tidak ada transaksi pada tanggal ini</h6>
+                    <p class="text-muted">Belum ada aktivitas penjualan atau pengeluaran</p>
+                </div>
+            `;
+        }
+
+        document.getElementById('transactionDetailContent').innerHTML = content;
+    }
+
+    function showError(message) {
+        document.getElementById('transactionDetailContent').innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                <h6 class="text-muted mt-3">${message}</h6>
+                <button class="btn btn-primary mt-2" onclick="transactionModal.hide()">Tutup</button>
+            </div>
+        `;
+    }
+
+    function numberFormat(number) {
+        return new Intl.NumberFormat('id-ID').format(number);
+    }
+
+    function getPaymentIcon(method) {
+        const icons = {
+            'cash': 'bi-cash-stack',
+            'qris': 'bi-qr-code',
+            'transfer': 'bi-bank'
+        };
+        return icons[method] || 'bi-cash-stack';
+    }
+
+    function getPaymentLabel(method) {
+        const labels = {
+            'cash': 'Tunai',
+            'qris': 'QRIS',
+            'transfer': 'Transfer'
+        };
+        return labels[method] || 'Tunai';
+    }
+</script>
+@endpush
 @endsection
